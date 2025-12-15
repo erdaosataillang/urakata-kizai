@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>機材マネージャー</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        /* --- 共通設定 (LMC Mobileのデザインを踏襲) --- */
+        body { margin: 0; padding: 0; font-family: 'Roboto', 'Noto Sans JP', sans-serif; background-color: rgb(241, 244, 249); color: #1f1f1f; min-height: 100vh; padding-bottom: 88px; overscroll-behavior-y: none; user-select: none; -webkit-user-select: none; }
+        .container { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+        .hidden { display: none !important; }
+
+        /* ヘッダー */
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgb(241, 244, 249); flex-shrink: 0; z-index: 500; position: sticky; top: 0; }
+        .header-title { font-size: 22px; font-weight: bold; color: #1f1f1f; display: flex; align-items: center; gap: 8px; }
+        .header-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: #dadce0; cursor: pointer; }
+        .header-avatar img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
+
+        /* タブ */
+        .tabs-container { background: white; padding: 0 16px 12px; position: sticky; top: 60px; z-index: 400; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .eq-tabs { display: flex; background: #f1f3f4; border-radius: 12px; padding: 4px; }
+        .eq-tab { flex: 1; text-align: center; padding: 8px 0; font-size: 13px; font-weight: bold; border-radius: 8px; cursor: pointer; color: #5f6368; transition: all 0.2s; }
+        .eq-tab.active { background: white; color: #0b57d0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        /* コンテンツエリア */
+        .scroll-content { flex-grow: 1; overflow-y: auto; padding: 16px; padding-bottom: 100px; -webkit-overflow-scrolling: touch; }
+
+        /* 検索バー */
+        .search-bar { padding: 12px 16px; background:white; border-radius:30px; display:flex; align-items:center; margin-bottom:16px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .search-bar input { border:none; width:100%; outline:none; font-size:16px; margin-left:10px; padding:0; }
+
+        /* 機材リストアイテム */
+        .equipment-item { display:flex; align-items:center; background:white; padding:12px; border-radius:16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition: transform 0.1s; cursor: pointer; }
+        .equipment-item:active { transform: scale(0.98); background-color: #f8f9fa; }
+        .eq-thumb { width: 60px; height: 60px; border-radius: 12px; background: #f1f3f4; margin-right: 16px; object-fit: cover; flex-shrink: 0; }
+        .eq-info { flex-grow: 1; overflow: hidden; }
+        .eq-header { display: flex; align-items: center; margin-bottom: 4px; }
+        .eq-code { font-size: 11px; font-weight: bold; color: #0b57d0; background: #e8f0fe; padding: 2px 6px; border-radius: 6px; margin-right: 8px; flex-shrink: 0; }
+        .eq-name { font-size: 16px; font-weight: bold; color: #1f1f1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .eq-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+        .eq-desc { font-size: 12px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+        
+        /* ステータスバッジ */
+        .status-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .status-available { background: #e6f4ea; color: #137333; }
+        .status-using { background: #fff7e0; color: #b06000; }
+        .status-broken { background: #fce8e6; color: #c5221f; }
+        .status-missing { background: #3c4043; color: #fff; }
+
+        /* FAB (追加ボタン) */
+        .fab { position: fixed; bottom: 30px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: #c2e7ff; color: #001d35; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 900; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        /* モーダル */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: flex-end; }
+        .modal-overlay.open { display: flex; }
+        .modal-content { background: white; width: 100%; max-width: 480px; border-radius: 24px 24px 0 0; padding: 24px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* フォーム要素 */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 12px; color: #5f6368; margin-bottom: 6px; font-weight: bold; }
+        .form-input { width: 100%; padding: 14px; border: 1px solid #dadce0; border-radius: 12px; box-sizing: border-box; font-size: 16px; background: white; -webkit-appearance: none; }
+        .form-input:focus { border-color: #0b57d0; outline: none; }
+        textarea.form-input { resize: vertical; min-height: 80px; }
+
+        .radio-group { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+        .radio-label { display: flex; align-items: center; font-size: 14px; cursor: pointer; background: #f1f3f4; padding: 8px 12px; border-radius: 20px; white-space: nowrap; transition: background 0.2s; }
+        .radio-label.checked { background: #e8f0fe; color: #0b57d0; font-weight: bold; border: 1px solid #0b57d0; }
+        .radio-label input { display: none; }
+
+        /* 画像アップローダー */
+        .image-picker-area { display: flex; justify-content: center; margin-bottom: 24px; }
+        .image-picker { width: 120px; height: 120px; background: #f1f3f4; border-radius: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #0b57d0; cursor: pointer; overflow: hidden; position: relative; border: 2px dashed #dadce0; }
+        .image-picker img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        
+        /* ボタン */
+        .btn-primary { background: #0b57d0; color: white; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 12px; }
+        .btn-secondary { background: #f1f3f4; color: #1f1f1f; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-danger { background: #fee2e2; color: #d93025; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 12px; }
+
+        /* マイページモーダル用 */
+        .profile-card { text-align: center; margin-bottom: 24px; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 12px; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="app-header">
+            <div class="header-title">
+                <span class="material-icons" style="color:#0b57d0;">inventory_2</span>
+                機材管理
+            </div>
+            <div class="header-avatar" onclick="openProfile()">
+                <img id="headerIcon" src="https://placehold.jp/40x40.png" alt="icon">
+            </div>
+        </div>
+
+        <!-- タブ切り替え -->
+        <div class="tabs-container">
+            <div class="search-bar">
+                <span class="material-icons" style="color:#5f6368;">search</span>
+                <input type="text" id="searchInput" placeholder="機材名、型番で検索..." oninput="filterEquipments()">
+            </div>
+            <div class="eq-tabs">
+                <div class="eq-tab active" onclick="switchTab('all')" id="tab-all">全て</div>
+                <div class="eq-tab" onclick="switchTab('A')" id="tab-A">A:固定</div>
+                <div class="eq-tab" onclick="switchTab('B')" id="tab-B">B:その他</div>
+                <div class="eq-tab" onclick="switchTab('C')" id="tab-C">C:線</div>
+            </div>
+        </div>
+
+        <!-- リスト表示エリア -->
+        <div class="scroll-content">
+            <div id="equipmentList">
+                <div style="text-align:center; margin-top:40px; color:#999;">
+                    <div class="material-icons" style="font-size:48px; margin-bottom:8px;">hourglass_empty</div>
+                    <br>読み込み中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 追加ボタン -->
+        <div class="fab" onclick="openModal('modal-edit', 'new')">
+            <span class="material-icons">add</span>
+        </div>
+    </div>
+
+    <!-- モーダル: 機材登録/編集 -->
+    <div id="modal-edit" class="modal-overlay" onclick="if(event.target===this) closeModal('modal-edit')">
+        <div class="modal-content">
+            <h3 style="margin-top:0; margin-bottom:20px;" id="modalTitle">機材登録</h3>
+            <input type="hidden" id="editDocId">
+
+            <div class="image-picker-area">
+                <div class="image-picker" onclick="document.getElementById('eqIconInput').click()">
+                    <i class="material-icons" style="font-size:32px;">add_a_photo</i>
+                    <span style="font-size:12px; margin-top:4px;">写真を追加</span>
+                    <img id="previewEqIcon" class="hidden" src="">
+                </div>
+                <input type="file" id="eqIconInput" accept="image/*" hidden onchange="handleImageSelect(this)">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">カテゴリ (型番プレフィックス)</label>
+                <div class="radio-group" id="categoryRadios">
+                    <label class="radio-label checked" onclick="selectCategory('A', this)">
+                        <input type="radio" name="eqCategory" value="A" checked> A: 固定機材 (音響等)
+                    </label>
+                    <label class="radio-label" onclick="selectCategory('B', this)">
+                        <input type="radio" name="eqCategory" value="B"> B: その他 (照明・映像他)
+                    </label>
+                    <label class="radio-label" onclick="selectCategory('C', this)">
+                        <input type="radio" name="eqCategory" value="C"> C: ケーブル類
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">管理番号</label>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="eqPrefixDisplay" style="font-weight:bold; font-size:20px; color:#0b57d0;">A-</span>
+                    <input type="text" id="inputNumber" class="form-input" placeholder="001 (数字のみ入力)" inputmode="numeric">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">品名・型番</label>
+                <input type="text" id="inputName" class="form-input" placeholder="例: SHURE SM58">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">詳細・保管場所・備考</label>
+                <textarea id="inputDesc" class="form-input" placeholder="詳細なスペックや、普段置いてある場所など"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">現在の状態</label>
+                <select id="inputStatus" class="form-input">
+                    <option value="available">🟢 利用可能 (Available)</option>
+                    <option value="using">🟡 使用中 (In Use)</option>
+                    <option value="broken">🔴 故障中 (Broken)</option>
+                    <option value="missing">⚫ 紛失 (Missing)</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" onclick="saveEquipment()">保存する</button>
+            <button id="btnDelete" class="btn-danger hidden" onclick="deleteEquipment()">この機材を削除</button>
+            <button class="btn-secondary" onclick="closeModal('modal-edit')">キャンセル</button>
+        </div>
+    </div>
+
+    <!-- モーダル: マイページ -->
+    <div id="modal-profile" class="modal-overlay" onclick="if(event.target===this) closeModal('modal-profile')">
+        <div class="modal-content">
+            <div class="profile-card">
+                <img id="profileImg" src="" class="profile-img">
+                <h3 id="profileName" style="margin:0;">User Name</h3>
+                <p style="font-size:12px; color:#5f6368;" id="profileId">ID: ...</p>
+            </div>
+            <div style="background:#f8f9fa; padding:16px; border-radius:12px; margin-bottom:20px;">
+                <h4 style="margin:0 0 8px; font-size:14px; color:#5f6368;">アプリ情報</h4>
+                <p style="font-size:13px; margin:0;">機材管理アプリ v1.0.0</p>
+            </div>
+            <button class="btn-secondary" onclick="closeModal('modal-profile')">閉じる</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+        // LMC Mobileと同じFirebase設定を使用
+        const firebaseConfig = {
+            apiKey: "AIzaSyAWtITnn5uMOPBgOY0Bd7Rt5IN1ry8XoJI",
+            authDomain: "urakata-app.firebaseapp.com",
+            projectId: "urakata-app",
+            storageBucket: "urakata-app.firebasestorage.app",
+            messagingSenderId: "407777765696",
+            appId: "1:407777765696:web:045c2d94729022b4eab2a5",
+            measurementId: "G-9ZRMD26XNJ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const MY_LIFF_ID = "2008162165-vVODNp12"; // 既存のLIFF ID
+
+        let currentUser = null;
+        let userProfile = null;
+        let currentTab = 'all';
+        let allEquipments = []; // クライアント検索用キャッシュ
+        let tempImageBase64 = null; // 画像アップロード用
+
+        // 初期化処理
+        async function main() {
+            try {
+                await liff.init({ liffId: MY_LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                currentUser = profile.userId;
+                userProfile = profile;
+
+                // ヘッダーアイコン設定
+                document.getElementById('headerIcon').src = profile.pictureUrl || "https://placehold.jp/40x40.png";
+                
+                // 初回データ読み込み
+                loadEquipments();
+
+            } catch (error) {
+                console.error("LIFF Init Error:", error);
+                alert("アプリの起動に失敗しました: " + error.message);
+            }
+        }
+
+        // --- データ取得・表示 ---
+        function loadEquipments() {
+            // インデックスエラー回避のため、クライアントサイドでソート・フィルタを行うシンプルなクエリにする
+            // データ量が増えた場合は複合インデックスを作成して where().orderBy() に切り替えるべき
+            const q = query(collection(db, "equipments"));
+            
+            onSnapshot(q, (snapshot) => {
+                allEquipments = [];
+                snapshot.forEach(doc => {
+                    allEquipments.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // カテゴリと番号でソート (A-001, A-002, B-001...)
+                allEquipments.sort((a, b) => {
+                    if (a.type !== b.type) return a.type.localeCompare(b.type);
+                    // 数字部分のソート（文字列比較だと 10 < 2 になるのを防ぐ）
+                    const numA = parseInt(a.number) || 0;
+                    const numB = parseInt(b.number) || 0;
+                    return numA - numB;
+                });
+
+                renderList();
+            }, (error) => {
+                console.error("Fetch Error:", error);
+                document.getElementById('equipmentList').innerHTML = `<div style="text-align:center; padding:40px; color:#d93025;">読み込みエラー<br>${error.message}</div>`;
+            });
+        }
+
+        // リスト描画（フィルタリング含む）
+        window.renderList = () => {
+            const container = document.getElementById('equipmentList');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            // フィルタリング
+            const filtered = allEquipments.filter(eq => {
+                // タブフィルタ
+                if (currentTab !== 'all' && eq.type !== currentTab) return false;
+                
+                // 検索ワードフィルタ
+                if (searchTerm) {
+                    const text = `${eq.type}-${eq.number} ${eq.name} ${eq.description || ''}`.toLowerCase();
+                    return text.includes(searchTerm);
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:40px; color:#999;">機材が見つかりません</div>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            filtered.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'equipment-item';
+                div.onclick = () => openModal('modal-edit', 'edit', eq);
+
+                const iconUrl = eq.image || 'https://placehold.jp/150x150.png?text=No+Img';
+                
+                let statusLabel = "利用可能";
+                let statusClass = "status-available";
+                if(eq.status === 'using') { statusLabel = "使用中"; statusClass = "status-using"; }
+                if(eq.status === 'broken') { statusLabel = "故障中"; statusClass = "status-broken"; }
+                if(eq.status === 'missing') { statusLabel = "紛失"; statusClass = "status-missing"; }
+
+                div.innerHTML = `
+                    <img src="${iconUrl}" class="eq-thumb">
+                    <div class="eq-info">
+                        <div class="eq-header">
+                            <span class="eq-code">${eq.type}-${eq.number}</span>
+                            <span class="status-badge ${statusClass}">${statusLabel}</span>
+                        </div>
+                        <div class="eq-name">${eq.name}</div>
+                        <div class="eq-meta">
+                            <div class="eq-desc">${eq.description || '詳細なし'}</div>
+                        </div>
+                    </div>
+                    <span class="material-icons" style="color:#dadce0; margin-left:8px;">chevron_right</span>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        window.filterEquipments = () => {
+            renderList();
+        };
+
+        window.switchTab = (tabName) => {
+            currentTab = tabName;
+            document.querySelectorAll('.eq-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            renderList();
+        };
+
+        // --- 登録・編集ロジック ---
+        
+        // カテゴリ選択UI制御
+        window.selectCategory = (val, labelElement) => {
+            // ラジオボタンの見た目制御
+            document.querySelectorAll('#categoryRadios .radio-label').forEach(el => el.classList.remove('checked'));
+            labelElement.classList.add('checked');
+            labelElement.querySelector('input').checked = true;
+            
+            // プレフィックス表示更新
+            document.getElementById('eqPrefixDisplay').innerText = val + "-";
+        };
+
+        window.openModal = (modalId, mode = 'new', data = null) => {
+            document.getElementById(modalId).classList.add('open');
+            
+            if (modalId === 'modal-edit') {
+                // フォームのリセット
+                tempImageBase64 = null;
+                document.getElementById('previewEqIcon').classList.add('hidden');
+                
+                if (mode === 'new') {
+                    document.getElementById('modalTitle').innerText = "機材登録";
+                    document.getElementById('editDocId').value = "";
+                    document.getElementById('inputNumber').value = "";
+                    document.getElementById('inputName').value = "";
+                    document.getElementById('inputDesc').value = "";
+                    document.getElementById('inputStatus').value = "available";
+                    document.getElementById('btnDelete').classList.add('hidden');
+                    
+                    // カテゴリリセット (Aを選択)
+                    selectCategory('A', document.querySelector('#categoryRadios .radio-label:first-child'));
+                } else {
+                    // 編集モード
+                    document.getElementById('modalTitle').innerText = "機材詳細・編集";
+                    document.getElementById('editDocId').value = data.id;
+                    document.getElementById('inputNumber').value = data.number;
+                    document.getElementById('inputName').value = data.name;
+                    document.getElementById('inputDesc').value = data.description || "";
+                    document.getElementById('inputStatus').value = data.status || "available";
+                    document.getElementById('btnDelete').classList.remove('hidden');
+
+                    // カテゴリ反映
+                    const radios = document.querySelectorAll('input[name="eqCategory"]');
+                    radios.forEach(r => {
+                        if(r.value === data.type) {
+                            selectCategory(r.value, r.parentElement);
+                        }
+                    });
+
+                    // 画像反映
+                    if (data.image) {
+                        const img = document.getElementById('previewEqIcon');
+                        img.src = data.image;
+                        img.classList.remove('hidden');
+                    }
+                }
+            }
+        };
+
+        window.closeModal = (modalId) => {
+            document.getElementById(modalId).classList.remove('open');
+        };
+
+        // 画像選択ハンドラ
+        window.handleImageSelect = (input) => {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // プレビュー表示
+                    const img = document.getElementById('previewEqIcon');
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    
+                    // 圧縮処理（軽量化のため）
+                    compressImage(file).then(base64 => {
+                        tempImageBase64 = base64;
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // 画像圧縮 (Canvas使用)
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 最大サイズ 800px
+                    const MAX_SIZE = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8)); // JPEG 80%品質
+                };
+            });
+        };
+
+        // 保存処理
+        window.saveEquipment = async () => {
+            const btn = document.querySelector('.btn-primary');
+            btn.disabled = true;
+            btn.innerText = "保存中...";
+
+            try {
+                const docId = document.getElementById('editDocId').value;
+                const type = document.querySelector('input[name="eqCategory"]:checked').value;
+                const number = document.getElementById('inputNumber').value.trim();
+                const name = document.getElementById('inputName').value.trim();
+                const description = document.getElementById('inputDesc').value.trim();
+                const status = document.getElementById('inputStatus').value;
+
+                if (!number || !name) {
+                    throw new Error("管理番号と品名は必須です");
+                }
+
+                // 重複チェック (新規登録時のみ)
+                if (!docId) {
+                    const exists = allEquipments.some(e => e.type === type && e.number === number);
+                    if (exists) {
+                        if(!confirm(`管理番号 ${type}-${number} は既に使用されています。\n重複して登録しますか？`)) {
+                            throw new Error("キャンセルされました");
+                        }
+                    }
+                }
+
+                let imageUrl = null;
+                // 新しい画像が選択されている場合のみアップロード
+                if (tempImageBase64) {
+                    const storagePath = `equipments/${type}-${number}_${Date.now()}.jpg`;
+                    const storageRef = ref(storage, storagePath);
+                    await uploadString(storageRef, tempImageBase64, 'data_url');
+                    imageUrl = await getDownloadURL(storageRef);
+                }
+
+                const data = {
+                    type,
+                    number,
+                    name,
+                    description,
+                    status,
+                    updatedAt: serverTimestamp(),
+                    updatedBy: currentUser
+                };
+
+                if (imageUrl) {
+                    data.image = imageUrl;
+                }
+
+                if (docId) {
+                    // 更新
+                    await updateDoc(doc(db, "equipments", docId), data);
+                    alert("更新しました");
+                } else {
+                    // 新規
+                    data.createdAt = serverTimestamp();
+                    data.registeredBy = currentUser;
+                    await addDoc(collection(db, "equipments"), data);
+                    alert("登録しました");
+                }
+
+                closeModal('modal-edit');
+
+            } catch (e) {
+                if (e.message !== "キャンセルされました") {
+                    alert("エラー: " + e.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "保存する";
+            }
+        };
+
+        // 削除処理
+        window.deleteEquipment = async () => {
+            const docId = document.getElementById('editDocId').value;
+            if (!docId) return;
+
+            if (confirm("本当にこの機材情報を削除しますか？\n（復元できません）")) {
+                try {
+                    await deleteDoc(doc(db, "equipments", docId));
+                    alert("削除しました");
+                    closeModal('modal-edit');
+                } catch (e) {
+                    alert("削除エラー: " + e.message);
+                }
+            }
+        };
+
+        // マイページ
+        window.openProfile = () => {
+            if(userProfile) {
+                document.getElementById('profileImg').src = userProfile.pictureUrl || "https://placehold.jp/80x80.png";
+                document.getElementById('profileName').innerText = userProfile.displayName;
+                document.getElementById('profileId').innerText = "ID: " + currentUser.substring(0, 10) + "...";
+                openModal('modal-profile');
+            }
+        };
+
+        // 起動
+        main();
+
+    </script>
+</body>
+</html>
