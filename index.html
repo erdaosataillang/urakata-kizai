@@ -11,7 +11,7 @@
     <style>
         /* --- 共通設定 (LMC Mobileのデザインを踏襲) --- */
         body { margin: 0; padding: 0; font-family: 'Roboto', 'Noto Sans JP', sans-serif; background-color: rgb(241, 244, 249); color: #1f1f1f; min-height: 100vh; padding-bottom: 88px; overscroll-behavior-y: none; user-select: none; -webkit-user-select: none; }
-        .container { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+        .container { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; transition: max-width 0.3s; }
         .hidden { display: none !important; }
 
         /* ヘッダー */
@@ -34,7 +34,7 @@
         .search-bar input { border:none; width:100%; outline:none; font-size:16px; margin-left:10px; padding:0; }
 
         /* 機材リストアイテム */
-        .equipment-item { display:flex; align-items:center; background:white; padding:12px; border-radius:16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition: transform 0.1s; cursor: pointer; }
+        .equipment-item { display:flex; align-items:center; background:white; padding:12px; border-radius:16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition: transform 0.1s, box-shadow 0.2s; cursor: pointer; }
         .equipment-item:active { transform: scale(0.98); background-color: #f8f9fa; }
         .eq-thumb { width: 60px; height: 60px; border-radius: 12px; background: #f1f3f4; margin-right: 16px; object-fit: cover; flex-shrink: 0; }
         .eq-info { flex-grow: 1; overflow: hidden; }
@@ -45,7 +45,7 @@
         .eq-desc { font-size: 12px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
         
         /* ステータスバッジ */
-        .status-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .status-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; white-space: nowrap; }
         .status-available { background: #e6f4ea; color: #137333; }
         .status-using { background: #fff7e0; color: #b06000; }
         .status-broken { background: #fce8e6; color: #c5221f; }
@@ -56,7 +56,7 @@
         .fab:active { transform: scale(0.9); }
 
         /* モーダル */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: flex-end; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: flex-end; transition: opacity 0.2s; }
         .modal-overlay.open { display: flex; }
         .modal-content { background: white; width: 100%; max-width: 480px; border-radius: 24px 24px 0 0; padding: 24px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -79,13 +79,130 @@
         .image-picker img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
         
         /* ボタン */
-        .btn-primary { background: #0b57d0; color: white; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 12px; }
+        .btn-primary { background: #0b57d0; color: white; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-secondary { background: #f1f3f4; color: #1f1f1f; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
         .btn-danger { background: #fee2e2; color: #d93025; border: none; padding: 14px; border-radius: 24px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 12px; }
 
         /* マイページモーダル用 */
         .profile-card { text-align: center; margin-bottom: 24px; }
         .profile-img { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 12px; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+        /* --- PC・タブレット向けレスポンシブ対応 --- */
+        @media (min-width: 768px) {
+            body {
+                background-color: #f0f2f5;
+                overflow-y: scroll; /* 全体スクロールを許可 */
+                padding-bottom: 20px;
+            }
+            .container {
+                max-width: 1024px;
+                padding: 20px;
+            }
+            .app-header {
+                border-radius: 16px;
+                margin-bottom: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                position: relative; /* Sticky解除 */
+                top: 0;
+            }
+            .tabs-container {
+                position: relative;
+                top: 0;
+                background: transparent;
+                box-shadow: none;
+                padding: 0;
+                margin-bottom: 24px;
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                border-radius: 0;
+            }
+            .search-bar {
+                margin-bottom: 0;
+                flex-grow: 1;
+                max-width: 400px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            .eq-tabs {
+                flex-grow: 1;
+                max-width: 500px;
+                background: white;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                padding: 6px;
+            }
+            
+            /* リストをグリッド表示に */
+            .scroll-content {
+                padding: 0;
+                overflow: visible;
+            }
+            #equipmentList {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 16px;
+            }
+            .equipment-item {
+                margin-bottom: 0;
+                height: 100%;
+                align-items: flex-start;
+                padding: 20px;
+                border-radius: 16px;
+                border: 1px solid transparent;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            }
+            .equipment-item:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+                border-color: #c2e7ff;
+                z-index: 10;
+            }
+            .equipment-item:active {
+                transform: scale(0.98);
+            }
+            .eq-thumb {
+                width: 80px;
+                height: 80px;
+            }
+            .eq-name {
+                font-size: 18px;
+                margin-bottom: 4px;
+            }
+            .eq-desc {
+                max-width: 100%;
+                white-space: normal; /* 複数行表示許可 */
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            }
+
+            /* モーダルのPC最適化 */
+            .modal-overlay {
+                align-items: center; /* 中央寄せ */
+                backdrop-filter: blur(4px);
+            }
+            .modal-content {
+                border-radius: 24px;
+                max-width: 600px;
+                max-height: 85vh;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            }
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+
+            /* FAB調整 */
+            .fab {
+                bottom: 40px;
+                right: 40px;
+                width: 64px;
+                height: 64px;
+            }
+            .fab span {
+                font-size: 32px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -95,7 +212,7 @@
         <div class="app-header">
             <div class="header-title">
                 <span class="material-icons" style="color:#0b57d0;">inventory_2</span>
-                機材管理
+                機材マネージャー
             </div>
             <div class="header-avatar" onclick="openProfile()">
                 <img id="headerIcon" src="https://placehold.jp/40x40.png" alt="icon">
@@ -119,7 +236,7 @@
         <!-- リスト表示エリア -->
         <div class="scroll-content">
             <div id="equipmentList">
-                <div style="text-align:center; margin-top:40px; color:#999;">
+                <div style="text-align:center; margin-top:40px; color:#999; grid-column: 1 / -1;">
                     <div class="material-icons" style="font-size:48px; margin-bottom:8px;">hourglass_empty</div>
                     <br>読み込み中...
                 </div>
@@ -289,7 +406,7 @@
                 renderList();
             }, (error) => {
                 console.error("Fetch Error:", error);
-                document.getElementById('equipmentList').innerHTML = `<div style="text-align:center; padding:40px; color:#d93025;">読み込みエラー<br>${error.message}</div>`;
+                document.getElementById('equipmentList').innerHTML = `<div style="text-align:center; padding:40px; color:#d93025; grid-column: 1 / -1;">読み込みエラー<br>${error.message}</div>`;
             });
         }
 
@@ -312,7 +429,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:40px; color:#999;">機材が見つかりません</div>`;
+                container.innerHTML = `<div style="text-align:center; padding:40px; color:#999; grid-column: 1 / -1;">機材が見つかりません</div>`;
                 return;
             }
 
