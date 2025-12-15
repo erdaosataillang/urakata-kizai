@@ -51,9 +51,12 @@
         .status-broken { background: #fce8e6; color: #c5221f; }
         .status-missing { background: #3c4043; color: #fff; }
 
-        /* FAB (追加ボタン) */
-        .fab { position: fixed; bottom: 30px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: #c2e7ff; color: #001d35; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 900; transition: transform 0.2s; }
+        /* FAB (フローティングアクションボタン) */
+        .fab { position: fixed; bottom: 30px; width: 56px; height: 56px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 900; transition: transform 0.2s; }
         .fab:active { transform: scale(0.9); }
+        
+        .fab-left { left: 20px; background: #c2e7ff; color: #001d35; } /* 追加ボタン（左） */
+        .fab-right { right: 20px; background: #1a73e8; color: white; } /* QRボタン（右） */
 
         /* モーダル */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: flex-end; transition: opacity 0.2s; }
@@ -193,7 +196,13 @@
             }
 
             /* FAB調整 */
-            .fab {
+            .fab-left {
+                bottom: 40px;
+                left: 40px;
+                width: 64px;
+                height: 64px;
+            }
+            .fab-right {
                 bottom: 40px;
                 right: 40px;
                 width: 64px;
@@ -243,9 +252,14 @@
             </div>
         </div>
 
-        <!-- 追加ボタン -->
-        <div class="fab" onclick="openModal('modal-edit', 'new')">
+        <!-- 追加ボタン (左下) -->
+        <div class="fab fab-left" onclick="openModal('modal-edit', 'new')">
             <span class="material-icons">add</span>
+        </div>
+
+        <!-- QR読み込みボタン (右下) -->
+        <div class="fab fab-right" onclick="startQRScan()">
+            <span class="material-icons">qr_code_scanner</span>
         </div>
     </div>
 
@@ -283,7 +297,7 @@
                 <label class="form-label">管理番号</label>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span id="eqPrefixDisplay" style="font-weight:bold; font-size:20px; color:#0b57d0;">A-</span>
-                    <input type="text" id="inputNumber" class="form-input" placeholder="001 (数字のみ入力)" inputmode="numeric">
+                    <input type="text" id="inputNumber" class="form-input" placeholder="001 (自動入力)" inputmode="numeric">
                 </div>
             </div>
 
@@ -515,7 +529,7 @@
 
         // --- 登録・編集ロジック ---
         
-        // カテゴリ選択UI制御
+        // カテゴリ選択UI制御 + 自動採番の呼び出し
         window.selectCategory = (val, labelElement) => {
             // ラジオボタンの見た目制御
             document.querySelectorAll('#categoryRadios .radio-label').forEach(el => el.classList.remove('checked'));
@@ -524,6 +538,30 @@
             
             // プレフィックス表示更新
             document.getElementById('eqPrefixDisplay').innerText = val + "-";
+
+            // 新規登録時のみ自動採番を行う
+            const isNew = document.getElementById('editDocId').value === "";
+            if (isNew) {
+                autoFillNumber(val);
+            }
+        };
+
+        // 自動採番ロジック
+        window.autoFillNumber = (category) => {
+            // 現在のリストから該当カテゴリの最大番号を探す
+            // allEquipments は既にソートされている前提だが、確実にするため走査する
+            let maxNum = 0;
+            allEquipments.forEach(eq => {
+                if (eq.type === category) {
+                    const num = parseInt(eq.number);
+                    if (!isNaN(num) && num > maxNum) {
+                        maxNum = num;
+                    }
+                }
+            });
+            const nextNum = maxNum + 1;
+            // 3桁埋め (001)
+            document.getElementById('inputNumber').value = String(nextNum).padStart(3, '0');
         };
 
         window.openModal = (modalId, mode = 'new', data = null) => {
@@ -537,7 +575,6 @@
                 if (mode === 'new') {
                     document.getElementById('modalTitle').innerText = "機材登録";
                     document.getElementById('editDocId').value = "";
-                    document.getElementById('inputNumber').value = "";
                     document.getElementById('inputName').value = "";
                     document.getElementById('inputDesc').value = "";
                     document.getElementById('inputStatus').value = "available";
@@ -549,8 +586,11 @@
 
                     document.getElementById('btnDelete').classList.add('hidden');
                     
-                    // カテゴリリセット (Aを選択)
-                    selectCategory('A', document.querySelector('#categoryRadios .radio-label:first-child'));
+                    // カテゴリリセット (Aを選択し、番号を自動入力)
+                    const defaultCat = 'A';
+                    const label = document.querySelector(`#categoryRadios input[value="${defaultCat}"]`).parentElement;
+                    selectCategory(defaultCat, label);
+
                 } else {
                     // 編集モード
                     document.getElementById('modalTitle').innerText = "機材詳細・編集";
@@ -571,7 +611,11 @@
                     const radios = document.querySelectorAll('input[name="eqCategory"]');
                     radios.forEach(r => {
                         if(r.value === data.type) {
-                            selectCategory(r.value, r.parentElement);
+                            // 編集時は自動採番しないようにするため selectCategory は呼ばず、見た目だけ更新
+                            document.querySelectorAll('#categoryRadios .radio-label').forEach(el => el.classList.remove('checked'));
+                            r.parentElement.classList.add('checked');
+                            r.checked = true;
+                            document.getElementById('eqPrefixDisplay').innerText = data.type + "-";
                         }
                     });
 
@@ -587,6 +631,43 @@
 
         window.closeModal = (modalId) => {
             document.getElementById(modalId).classList.remove('open');
+        };
+
+        // QRコードスキャン
+        window.startQRScan = async () => {
+            if (!liff.isInClient()) {
+                return alert("QRスキャンはLINEアプリ内でのみ利用可能です。");
+            }
+            try {
+                const result = await liff.scanCodeV2();
+                if (result && result.value) {
+                    const code = result.value; // 例: A-001-01
+                    const parts = code.split('-');
+                    
+                    if (parts.length < 2) {
+                        return alert("無効なQRコード形式です: " + code);
+                    }
+
+                    const type = parts[0];   // A
+                    const number = parts[1]; // 001
+                    // parts[2] (枝番) は無視して検索
+
+                    // 機材を検索
+                    const found = allEquipments.find(eq => eq.type === type && parseInt(eq.number) === parseInt(number));
+                    
+                    if (found) {
+                        openModal('modal-edit', 'edit', found);
+                    } else {
+                        alert(`機材が見つかりませんでした。\n検索コード: ${type}-${number}`);
+                    }
+                }
+            } catch (error) {
+                console.error("Scan Error:", error);
+                // ユーザーキャンセル等は無視、それ以外はアラート
+                if (error.code !== "USER_CANCEL") {
+                    alert("スキャンに失敗しました: " + error.message);
+                }
+            }
         };
 
         // 画像選択ハンドラ
