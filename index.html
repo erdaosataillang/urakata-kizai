@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>機材マネージャー</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- jsQRライブラリ: ブラウザでのQR読み込み用 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
@@ -258,7 +260,7 @@
         </div>
 
         <!-- QR読み込みボタン (右下) -->
-        <div class="fab fab-right" onclick="startQRScan()">
+        <div class="fab fab-right" onclick="openQRModal()">
             <span class="material-icons">qr_code_scanner</span>
         </div>
     </div>
@@ -360,6 +362,22 @@
         </div>
     </div>
 
+    <!-- モーダル: QRスキャン -->
+    <div id="modal-qr" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-content" style="height: 100%; max-height: 100%; border-radius: 0; background: #000; display: flex; flex-direction: column; padding: 0;">
+            <div style="padding: 16px; display: flex; justify-content: space-between; align-items: center; color: white; background: rgba(0,0,0,0.5); position: absolute; top: 0; left: 0; right: 0; z-index: 10;">
+                <h3 style="margin:0;">QRスキャン</h3>
+                <span class="material-icons" style="cursor: pointer; padding: 8px;" onclick="closeQRModal()">close</span>
+            </div>
+            <div style="flex-grow: 1; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+                <video id="qr-video" playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <div style="position: absolute; width: 70%; padding-top: 70%; border: 2px solid #0b57d0; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none;"></div>
+                <div id="qr-message" style="position: absolute; bottom: 10%; color: white; background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 20px; font-size: 14px;">カメラを起動しています...</div>
+            </div>
+            <canvas id="qr-canvas" hidden></canvas>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -386,6 +404,12 @@
         let currentTab = 'all';
         let allEquipments = []; // クライアント検索用キャッシュ
         let tempImageBase64 = null; // 画像アップロード用
+
+        // カメラ用変数
+        let video = null;
+        let canvasElement = null;
+        let canvas = null;
+        let isScanning = false;
 
         // 初期化処理
         async function main() {
@@ -633,42 +657,105 @@
             document.getElementById(modalId).classList.remove('open');
         };
 
-        // QRコードスキャン
+        // QRモーダルを開く
+        window.openQRModal = () => {
+            document.getElementById('modal-qr').classList.add('open');
+            startQRScan();
+        };
+
+        // QRモーダルを閉じる
+        window.closeQRModal = () => {
+            document.getElementById('modal-qr').classList.remove('open');
+            stopQRScan();
+        };
+
+        // QRスキャン開始 (jsQR使用)
         window.startQRScan = async () => {
-            if (!liff.isInClient()) {
-                return alert("QRスキャンはLINEアプリ内でのみ利用可能です。");
-            }
+            video = document.getElementById("qr-video");
+            canvasElement = document.getElementById("qr-canvas");
+            canvas = canvasElement.getContext("2d");
+            const msg = document.getElementById("qr-message");
+
+            isScanning = true;
+            msg.innerText = "カメラを起動しています...";
+
             try {
-                const result = await liff.scanCodeV2();
-                if (result && result.value) {
-                    const code = result.value; // 例: A-001-01
-                    const parts = code.split('-');
-                    
-                    if (parts.length < 2) {
-                        return alert("無効なQRコード形式です: " + code);
-                    }
-
-                    const type = parts[0];   // A
-                    const number = parts[1]; // 001
-                    // parts[2] (枝番) は無視して検索
-
-                    // 機材を検索
-                    const found = allEquipments.find(eq => eq.type === type && parseInt(eq.number) === parseInt(number));
-                    
-                    if (found) {
-                        openModal('modal-edit', 'edit', found);
-                    } else {
-                        alert(`機材が見つかりませんでした。\n検索コード: ${type}-${number}`);
-                    }
-                }
-            } catch (error) {
-                console.error("Scan Error:", error);
-                // ユーザーキャンセル等は無視、それ以外はアラート
-                if (error.code !== "USER_CANCEL") {
-                    alert("スキャンに失敗しました: " + error.message);
-                }
+                // 背面カメラを優先的に取得
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                // iOSのSafariでインライン再生するために必要
+                video.setAttribute("playsinline", true); 
+                video.play();
+                requestAnimationFrame(tick);
+            } catch (err) {
+                console.error(err);
+                msg.innerText = "カメラの起動に失敗しました";
+                isScanning = false;
             }
         };
+
+        window.stopQRScan = () => {
+            isScanning = false;
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+        };
+
+        // QR解析ループ
+        function tick() {
+            if (!isScanning) return;
+            const msg = document.getElementById("qr-message");
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
+                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+                
+                const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                // jsQRで解析
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    // QR発見時
+                    handleQRCode(code.data);
+                } else {
+                    msg.innerText = "QRコードを枠内に入れてください";
+                    requestAnimationFrame(tick);
+                }
+            } else {
+                requestAnimationFrame(tick);
+            }
+        }
+
+        // QRコードの内容処理
+        function handleQRCode(code) {
+            // スキャン停止
+            stopQRScan();
+            document.getElementById('modal-qr').classList.remove('open');
+
+            // フォーマット: A-001-01
+            const parts = code.split('-');
+            if (parts.length < 2) {
+                return alert("無効なQRコード形式です: " + code);
+            }
+
+            const type = parts[0];   // A
+            const number = parts[1]; // 001
+            // parts[2] (枝番) は機材管理としては同一とみなす（検索条件に含めない）
+
+            // リストから検索
+            const found = allEquipments.find(eq => eq.type === type && parseInt(eq.number) === parseInt(number));
+            
+            if (found) {
+                // 少し遅延させてモーダルを開く（UIの切り替えをスムーズにするため）
+                setTimeout(() => openModal('modal-edit', 'edit', found), 300);
+            } else {
+                alert(`機材が見つかりませんでした。\n検索コード: ${type}-${number}`);
+            }
+        }
 
         // 画像選択ハンドラ
         window.handleImageSelect = (input) => {
