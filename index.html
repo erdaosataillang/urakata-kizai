@@ -294,7 +294,8 @@
 
             <div class="form-group">
                 <label class="form-label">メーカー (任意)</label>
-                <input type="text" id="inputMaker" class="form-input" placeholder="例: YAMAHA">
+                <input type="text" id="inputMaker" class="form-input" placeholder="例: YAMAHA" list="makerListOptions">
+                <datalist id="makerListOptions"></datalist>
             </div>
 
             <div style="display:flex; gap:16px;">
@@ -420,9 +421,27 @@
                 });
 
                 renderList();
+                updateMakerSuggestions();
             }, (error) => {
                 console.error("Fetch Error:", error);
                 document.getElementById('equipmentList').innerHTML = `<div style="text-align:center; padding:40px; color:#d93025; grid-column: 1 / -1;">読み込みエラー<br>${error.message}</div>`;
+            });
+        }
+
+        function updateMakerSuggestions() {
+            const makers = new Set();
+            allEquipments.forEach(eq => {
+                if(eq.maker && eq.maker.trim() !== "") {
+                    makers.add(eq.maker.trim());
+                }
+            });
+            
+            const datalist = document.getElementById('makerListOptions');
+            datalist.innerHTML = "";
+            Array.from(makers).sort().forEach(m => {
+                const op = document.createElement('option');
+                op.value = m;
+                datalist.appendChild(op);
             });
         }
 
