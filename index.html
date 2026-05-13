@@ -203,33 +203,75 @@
 
         /* QR Scanner */
         #modal-qr .bottom-sheet-content { height: 100%; max-height: 100%; border-radius: 0; padding: 0; background: #000; }
+
+        /* --- PC・タブレット向けレスポンシブ対応 --- */
+        @media (min-width: 768px) {
+            /* モーダルのPC最適化 */
+            .bottom-sheet-overlay { align-items: center; padding: 24px; }
+            .bottom-sheet-content {
+                border-radius: 28px;
+                transform: scale(0.95); /* translateYを上書きし、縮小状態から拡大するアニメーションに */
+            }
+            .bottom-sheet-overlay.open .bottom-sheet-content {
+                transform: scale(1);
+            }
+            .drag-handle { display: none; } /* ドラッグハンドルを非表示 */
+            
+            /* QRモーダルのPC最適化 */
+            #modal-qr .bottom-sheet-content { height: 600px; max-height: 85vh; border-radius: 28px; max-width: 600px; position: relative; overflow: hidden; }
+            #modal-qr .absolute.top-0 { border-radius: 28px 28px 0 0; }
+            
+            /* カードのホバーエフェクト */
+            .m3-card:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: transparent; }
+            
+            .top-app-bar { padding-top: 24px; padding-bottom: 24px; }
+            
+            /* 追加: Selection Bar のアニメーション */
+            .selection-bar-active { transform: translateY(0) !important; }
+        }
+        
+        /* PC以上の画面での Selection Bar 中央寄せアニメーション */
+        @media (min-width: 768px) {
+            .selection-bar-active { transform: translate(-50%, 0) !important; }
+        }
     </style>
 </head>
-<body class="pb-24">
+<body class="pb-24 md:pb-32">
 
-    <div class="max-w-2xl mx-auto min-h-screen flex flex-col relative">
+    <div class="w-full max-w-6xl mx-auto min-h-screen flex flex-col relative md:px-6">
         
         <!-- App Bar -->
-        <header class="top-app-bar px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-2 text-xl font-bold tracking-tight text-[#191C20]">
-                <span class="material-symbols-rounded text-[#006494]">inventory_2</span>
+        <header class="top-app-bar px-4 md:px-0 py-3 md:py-6 flex justify-between items-center md:bg-transparent">
+            <div class="flex items-center gap-2 text-xl md:text-2xl font-bold tracking-tight text-[#191C20]">
+                <span class="material-symbols-rounded text-[#006494] md:text-3xl">inventory_2</span>
                 機材マネージャー
             </div>
-            <button onclick="openProfile()" class="w-9 h-9 rounded-full bg-[#DDE3EA] overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#006494] focus:ring-offset-2">
-                <img id="headerIcon" src="https://placehold.co/40x40/DDE3EA/41474D?text=U" alt="Profile" class="w-full h-full object-cover">
-            </button>
+            <div class="flex items-center gap-1 md:gap-3">
+                <!-- 表示切替ボタン -->
+                <button onclick="toggleViewMode()" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[#DDE3EA] transition-colors text-[#41474D]">
+                    <span id="viewModeIcon" class="material-symbols-rounded">view_list</span>
+                </button>
+                <!-- 選択モード切替ボタン -->
+                <button onclick="toggleSelectMode()" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[#DDE3EA] transition-colors text-[#41474D]">
+                    <span class="material-symbols-rounded">checklist</span>
+                </button>
+                <!-- プロフィール -->
+                <button onclick="openProfile()" class="w-9 h-9 md:w-12 md:h-12 ml-1 rounded-full bg-[#DDE3EA] overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#006494] focus:ring-offset-2 hover:opacity-80 transition-opacity">
+                    <img id="headerIcon" src="https://placehold.co/40x40/DDE3EA/41474D?text=U" alt="Profile" class="w-full h-full object-cover">
+                </button>
+            </div>
         </header>
 
         <!-- Search & Tabs -->
-        <div class="px-4 sticky top-[60px] z-40 bg-opacity-95 backdrop-blur-md pb-3 pt-2" style="background-color: rgba(248, 253, 255, 0.9);">
+        <div class="px-4 md:px-0 sticky top-[60px] md:top-[88px] z-40 bg-opacity-95 backdrop-blur-md pb-3 pt-2 md:flex md:items-center md:gap-6 md:bg-transparent" style="background-color: rgba(248, 253, 255, 0.9);">
             <!-- Search Bar -->
-            <div class="bg-[#EFF1F6] rounded-full flex items-center px-4 py-3 mb-4">
+            <div class="bg-[#EFF1F6] rounded-full flex items-center px-4 py-3 mb-4 md:mb-0 w-full md:max-w-[400px]">
                 <span class="material-symbols-rounded text-[#41474D]">search</span>
                 <input type="text" id="searchInput" placeholder="機材名、型番で検索..." class="bg-transparent border-none outline-none w-full ml-2 text-base text-[#191C20] placeholder-[#41474D]" oninput="filterEquipments()">
             </div>
             
             <!-- Tabs (Filter Chips) -->
-            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide md:flex-wrap">
                 <button class="chip active px-4 py-2 rounded-lg text-sm whitespace-nowrap" onclick="switchTab('all')" id="tab-all">全て</button>
                 <button class="chip px-4 py-2 rounded-lg text-sm whitespace-nowrap" onclick="switchTab('A')" id="tab-A">A: 固定機材</button>
                 <button class="chip px-4 py-2 rounded-lg text-sm whitespace-nowrap" onclick="switchTab('B')" id="tab-B">B: その他</button>
@@ -238,9 +280,9 @@
         </div>
 
         <!-- List Area -->
-        <main class="flex-grow px-4 mt-2">
-            <div id="equipmentList" class="flex flex-col gap-3">
-                <div class="text-center mt-12 text-[#41474D]">
+        <main class="flex-grow px-4 md:px-0 mt-2">
+            <div id="equipmentList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                <div class="col-span-full text-center mt-12 text-[#41474D]">
                     <span class="material-symbols-rounded text-5xl mb-2 animate-pulse">hourglass_empty</span>
                     <p>読み込み中...</p>
                 </div>
@@ -249,14 +291,29 @@
 
         <!-- FABs -->
         <!-- Add Button (Left) -->
-        <button class="m3-fab m3-fab-primary fixed bottom-6 left-6 w-14 h-14 flex items-center justify-center z-50" onclick="openModal('modal-edit', 'new')">
-            <span class="material-symbols-rounded text-2xl">add</span>
+        <button class="m3-fab m3-fab-primary fixed bottom-6 left-6 md:bottom-10 md:left-10 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center z-50 hover:bg-[#B3D9FF] transition-colors" onclick="openModal('modal-edit', 'new')">
+            <span class="material-symbols-rounded text-2xl md:text-3xl">add</span>
         </button>
 
         <!-- QR Button (Right) -->
-        <button class="m3-fab bg-[#006494] text-white fixed bottom-6 right-6 w-14 h-14 flex items-center justify-center z-50" onclick="openQRModal()">
-            <span class="material-symbols-rounded text-2xl">qr_code_scanner</span>
+        <button class="m3-fab bg-[#006494] text-white fixed bottom-6 right-6 md:bottom-10 md:right-10 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center z-50 hover:bg-[#004D73] transition-colors" onclick="openQRModal()">
+            <span class="material-symbols-rounded text-2xl md:text-3xl">qr_code_scanner</span>
         </button>
+
+        <!-- 追加: 選択時のボトムアクションバー -->
+        <div id="selectionBar" class="fixed bottom-0 left-0 right-0 bg-[#CBE6FF] text-[#001E30] px-4 py-3 md:px-6 md:py-4 z-[100] transform translate-y-full transition-transform duration-300 flex items-center justify-between shadow-[0_-4px_10px_rgba(0,0,0,0.1)] rounded-t-2xl md:rounded-full md:bottom-6 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[600px] md:translate-y-[150%]">
+            <div class="flex items-center gap-2 md:gap-3">
+                <button onclick="toggleSelectMode()" class="material-symbols-rounded p-2 hover:bg-black/10 rounded-full transition-colors">close</button>
+                <span id="selectionCount" class="font-medium text-base md:text-lg">0件選択</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="selectAllVisible()" class="text-sm font-bold px-3 py-2 rounded-full hover:bg-black/10 transition-colors">全選択/解除</button>
+                <button onclick="exportCSV()" class="bg-[#006494] text-white px-4 py-2 rounded-full font-bold flex items-center gap-1.5 shadow-sm hover:bg-[#004D73] transition-colors">
+                    <span class="material-symbols-rounded text-[20px]">download</span>
+                    <span class="hidden md:inline">CSV出力</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal: Edit / Add Equipment -->
@@ -424,6 +481,12 @@
         let allEquipments = []; 
         let tempImageBase64 = null; 
 
+        // 追加: 表示モードと選択状態の管理変数
+        let viewMode = 'grid'; // 'grid' | 'list'
+        let isSelectMode = false;
+        let selectedIds = new Set();
+        let currentlyFilteredEquipments = [];
+
         // Camera variables
         let video = null;
         let canvasElement = null;
@@ -480,7 +543,7 @@
             }, (error) => {
                 console.error("Fetch Error:", error);
                 document.getElementById('equipmentList').innerHTML = `
-                    <div class="text-center p-8 text-[var(--md-sys-color-error)]">
+                    <div class="col-span-full text-center p-8 text-[var(--md-sys-color-error)]">
                         <span class="material-symbols-rounded text-4xl mb-2">error</span>
                         <p>読み込みエラー<br>${error.message}</p>
                     </div>`;
@@ -506,7 +569,8 @@
             const container = document.getElementById('equipmentList');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
             
-            const filtered = allEquipments.filter(eq => {
+            // フィルタリング処理（現在表示中の機材を保存しておく）
+            currentlyFilteredEquipments = allEquipments.filter(eq => {
                 if (currentTab !== 'all' && eq.type !== currentTab) return false;
                 if (searchTerm) {
                     const text = `${eq.type}-${eq.number} ${eq.name} ${eq.maker || ''} ${eq.description || ''}`.toLowerCase();
@@ -515,20 +579,50 @@
                 return true;
             });
 
-            if (filtered.length === 0) {
+            if (currentlyFilteredEquipments.length === 0) {
+                // ... 表示切り替え等で一時的にリセットするためクラスも初期化 ...
+                container.className = 'grid grid-cols-1 gap-4';
                 container.innerHTML = `
-                    <div class="text-center p-8 text-[#41474D]">
+                    <div class="col-span-full text-center p-8 text-[#41474D]">
                         <span class="material-symbols-rounded text-5xl mb-2 opacity-50">search_off</span>
                         <p>機材が見つかりません</p>
                     </div>`;
+                updateSelectionBar();
                 return;
             }
 
             container.innerHTML = "";
-            filtered.forEach(eq => {
+            
+            // 表示モードに応じたコンテナのクラス設定
+            if (viewMode === 'list') {
+                container.className = 'grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-3';
+            } else {
+                container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6';
+            }
+
+            currentlyFilteredEquipments.forEach(eq => {
+                const isSelected = selectedIds.has(eq.id);
                 const div = document.createElement('div');
-                div.className = 'm3-card p-4 flex gap-4 items-center cursor-pointer';
-                div.onclick = () => openModal('modal-edit', 'edit', eq);
+                
+                // カード/リストのベーススタイル設定
+                let baseClass = viewMode === 'list' 
+                    ? 'p-2 md:p-3 flex gap-3 items-center cursor-pointer bg-white rounded-[20px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all'
+                    : 'm3-card p-4 flex gap-4 items-center cursor-pointer';
+
+                if (isSelected) {
+                    baseClass += ' ring-2 ring-[#006494] bg-[#F0F8FF]'; // 選択時の青枠と背景色
+                } else {
+                    baseClass += ' border border-transparent';
+                }
+                div.className = baseClass;
+
+                div.onclick = () => {
+                    if (isSelectMode) {
+                        toggleSelection(eq.id);
+                    } else {
+                        openModal('modal-edit', 'edit', eq);
+                    }
+                };
 
                 const iconUrl = eq.image || 'https://placehold.co/150x150/DDE3EA/41474D?text=No+Img';
                 
@@ -539,25 +633,142 @@
                 if(eq.status === 'missing') { statusLabel = "紛失"; statusClass = "badge-missing"; }
 
                 const makerInfo = eq.maker ? `<span class="text-[10px] text-[#41474D] bg-[#EFF1F6] px-1.5 py-0.5 rounded mr-1">${eq.maker}</span>` : "";
-                
-                // 消費電力の表示 (機能追加部分)
                 const powerInfo = eq.power ? `<span class="text-[10px] text-[#41474D] bg-[#EFF1F6] px-1.5 py-0.5 rounded mr-1 inline-flex items-center"><span class="material-symbols-rounded text-[12px] mr-0.5 text-[#B06000]">bolt</span>${eq.power}W</span>` : "";
 
+                // リスト表示とカード表示で各要素のスタイルを切り替え
+                const thumbClass = viewMode === 'list' ? 'w-12 h-12 rounded-xl flex-shrink-0' : 'eq-thumb-container';
+                const titleClass = viewMode === 'list' ? 'text-sm md:text-base font-bold text-[#191C20] truncate' : 'text-base font-bold text-[#191C20] truncate';
+                const descClass = viewMode === 'list' ? 'hidden' : 'text-xs text-[#41474D] truncate mt-0.5';
+
+                // チェックボックスのHTML
+                let checkboxHtml = '';
+                if (isSelectMode) {
+                    checkboxHtml = `
+                        <div class="mr-1 flex items-center flex-shrink-0">
+                            <span class="material-symbols-rounded ${isSelected ? 'text-[#006494]' : 'text-[#A0AAB4]'} text-[28px] pointer-events-none transition-colors">
+                                ${isSelected ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                        </div>
+                    `;
+                }
+
                 div.innerHTML = `
-                    <div class="eq-thumb-container">
+                    ${checkboxHtml}
+                    <div class="${thumbClass} overflow-hidden bg-[#DDE3EA]">
                         <img src="${iconUrl}" class="w-full h-full object-cover">
                     </div>
                     <div class="flex-grow min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-bold text-[#006494] bg-[#CBE6FF] px-2 py-0.5 rounded-md">${eq.type}-${eq.number}</span>
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-[10px] md:text-xs font-bold text-[#006494] bg-[#CBE6FF] px-2 py-0.5 rounded-md">${eq.type}-${eq.number}</span>
                             <span class="badge ${statusClass}">${statusLabel}</span>
                         </div>
-                        <div class="text-base font-bold text-[#191C20] truncate">${makerInfo}${powerInfo}${eq.name}</div>
-                        <div class="text-xs text-[#41474D] truncate mt-0.5">${eq.description || '詳細なし'}</div>
+                        <div class="${titleClass}">${makerInfo}${powerInfo}${eq.name}</div>
+                        <div class="${descClass}">${eq.description || '詳細なし'}</div>
                     </div>
                 `;
                 container.appendChild(div);
             });
+
+            updateSelectionBar();
+        };
+
+        // 追加: 表示切り替え機能
+        window.toggleViewMode = () => {
+            viewMode = viewMode === 'grid' ? 'list' : 'grid';
+            document.getElementById('viewModeIcon').innerText = viewMode === 'grid' ? 'view_list' : 'grid_view';
+            renderList();
+        };
+
+        // 追加: 選択モード切り替え機能
+        window.toggleSelectMode = () => {
+            isSelectMode = !isSelectMode;
+            selectedIds.clear(); // モード切り替え時は選択状態をリセット
+
+            const bar = document.getElementById('selectionBar');
+            const fabs = document.querySelectorAll('.m3-fab');
+            
+            if (isSelectMode) {
+                bar.classList.add('selection-bar-active');
+                fabs.forEach(fab => fab.classList.add('scale-0', 'pointer-events-none')); // FABを隠す
+            } else {
+                bar.classList.remove('selection-bar-active');
+                fabs.forEach(fab => fab.classList.remove('scale-0', 'pointer-events-none')); // FABを戻す
+            }
+            renderList();
+        };
+
+        // 追加: 単一選択トグル機能
+        window.toggleSelection = (id) => {
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
+            } else {
+                selectedIds.add(id);
+            }
+            renderList();
+        };
+
+        // 追加: 表示中の一括選択/解除機能
+        window.selectAllVisible = () => {
+            const allSelected = currentlyFilteredEquipments.every(eq => selectedIds.has(eq.id));
+            if (allSelected) {
+                currentlyFilteredEquipments.forEach(eq => selectedIds.delete(eq.id)); // 全解除
+            } else {
+                currentlyFilteredEquipments.forEach(eq => selectedIds.add(eq.id)); // 全選択
+            }
+            renderList();
+        };
+
+        // 追加: 選択バーのテキスト更新
+        function updateSelectionBar() {
+            if (!isSelectMode) return;
+            document.getElementById('selectionCount').innerText = `${selectedIds.size}件選択`;
+        }
+
+        // 追加: CSV出力機能
+        window.exportCSV = () => {
+            if (selectedIds.size === 0) return alert('出力する機材が選択されていません。');
+
+            const targets = allEquipments.filter(eq => selectedIds.has(eq.id));
+            const headers = ['管理番号', 'カテゴリ', '品名・型番', 'メーカー', '状態', '導入年', '個数', '消費電力(W)', '詳細・保管場所・備考'];
+            
+            const rows = targets.map(eq => {
+                let statusStr = '';
+                if(eq.status === 'available') statusStr = '利用可能';
+                if(eq.status === 'using') statusStr = '使用中';
+                if(eq.status === 'broken') statusStr = '故障中';
+                if(eq.status === 'missing') statusStr = '紛失';
+
+                return [
+                    `${eq.type}-${eq.number}`,
+                    eq.type,
+                    eq.name,
+                    eq.maker || '',
+                    statusStr,
+                    eq.introductionYear || '',
+                    eq.quantity || '1',
+                    eq.power || '',
+                    eq.description ? eq.description.replace(/\r?\n/g, ' ') : '' // 改行をスペースに置換して崩れを防止
+                ];
+            });
+
+            // BOM付きで文字化け防止
+            let csvContent = "\uFEFF" + headers.join(',') + '\n';
+            rows.forEach(row => {
+                csvContent += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            link.setAttribute("download", `機材リスト_${dateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 出力完了後に選択モードを解除
+            toggleSelectMode(); 
         };
 
         window.switchTab = (tabName) => {
